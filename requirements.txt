@@ -1,0 +1,15 @@
+groq
+python-dotenv
+SpeechRecognition
+PyAudio
+edge-tts
+pygame
+pycaw
+comtypes
+pywin32
+psutil
+pyautogui
+send2trash
+pyperclip
+ddgs
+pytubefix

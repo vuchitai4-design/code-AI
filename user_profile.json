@@ -1,0 +1,12 @@
+{
+  "name": "Vũ Chí Tài",
+  "phone": "0908630016",
+  "address": "Chung cư 15 tầng Ngô Đức Kế, Phường Tam Thắng, Thành Phố Hồ Chí Minh, Việt Nam",
+  "hobbies": ["Đá bóng", "Lập trình", "Công nghệ", "Siêu xe"],
+  "favorite_clubs": ["Real Madrid", "Manchester United"],
+  "name_laptop": "Lenovo Legion 5 pro R9000P 2022",
+  "name_mobile_phone": "ZTE Nubia Neo 2 5G",
+  "gender": "Nam",
+  "date_of_birth": "19/10/2010",
+  "favorite_color": ["Đen", "Xám", "Xanh dương đậm"]
+}

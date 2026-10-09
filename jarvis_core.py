@@ -272,7 +272,6 @@ HOLIDAYS = {
     (1, 5): "ngày Quốc tế Lao động",
     (1, 6): "ngày Quốc tế Thiếu nhi",
     (2, 9): "ngày lễ Quốc khánh",
-    (19, 10): "ngày sinh nhật của Sếp",
     (20, 10): "ngày Phụ nữ Việt Nam",
     (20, 11): "ngày Nhà giáo Việt Nam",
     (24, 12): "đêm Giáng sinh",

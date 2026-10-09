@@ -790,8 +790,8 @@ def execute_single_command(user_text, chat_history=None):
         gpu_temp = None
 
         try:
-            import wmi
-            w = wmi.WMI(namespace="root\\wmi")
+            import _wmi
+            w = _wmi.WMI(namespace="root\\wmi")
             temp_info = w.MSAcpi_ThermalZoneTemperature()
             if temp_info:
                 cpu_temp = int((temp_info[0].CurrentTemperature / 10.0) - 273.15)

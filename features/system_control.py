@@ -81,15 +81,20 @@ STT_CORRECTIONS = {
     "clip champ": "clipchamp",
     "clip time": "clipchamp",
     "click time": "clipchamp",
-    "clip Trang": "clipchamp",
+    "clip trang": "clipchamp",
+    "clip xăm": "clipchamp",
+    "cờ líp trang": "clipchamp",
+    "cờ líp xăm": "clipchamp",
 }
 
+
 def normalize_speech_text(text: str) -> str:
-    """Sửa lỗi nhận diện từ tiếng Anh phát âm sai sang từ chuẩn"""
-    text = text.lower().strip()
-    for wrong, correct in STT_CORRECTIONS.items():
-        text = re.sub(rf"\b{re.escape(wrong)}\b", correct, text)
-    return text
+  """Sửa lỗi nhận diện từ tiếng Anh phát âm sai sang từ chuẩn (Không phân biệt hoa thường)"""
+  text = text.lower().strip()
+  for wrong, correct in STT_CORRECTIONS.items():
+    # Thêm re.IGNORECASE để đảm bảo bắt trúng 100% dù viết hoa hay thường
+    text = re.sub(rf"\b{re.escape(wrong)}\b", correct, text, flags=re.IGNORECASE)
+  return text
 
 # ==========================================
 # APP DATABASE DỰ PHÒNG CHUẨN
@@ -159,6 +164,11 @@ APP_DATABASE = {
         "appid": "Microsoft.Windows.Explorer",
         "exes": ["explorer.exe"],
         "aliases": ["thư mục", "explorer", "quản lý tệp"]
+    },
+    "clipchamp": {
+        "appid": "Clipchamp.Clipchamp_8wekyb3d8bbwe!App",
+        "exes": ["Clipchamp.exe"],
+        "aliases": ["clipchamp", "clip trang", "trình chỉnh sửa video", "cắt video"]
     }
 }
 
@@ -529,13 +539,13 @@ def find_app_entry(input_name):
 
 
 def open_app(app_name):
-    """Mở app thông minh: Mở mượt mà cả App .exe lẫn App Store / Windows Default Apps"""
+    """Mở app thông minh: Mở trực tiếp cả Win32 (.exe) lẫn UWP / Microsoft Store Apps"""
     if not app_name or not app_name.strip():
         return "Sếp chưa nói tên ứng dụng cần mở ạ."
 
     clean_name = clean_command_target(app_name)
 
-    # 🛑 ĐẶC BIỆT: Xử lý Canva (Thử qua Protocol canva:// -> Webbrowser)
+    # 1. Xử lý Canva đặc biệt
     if "canva" in clean_name:
         try:
             os.system("start canva://")
@@ -544,8 +554,19 @@ def open_app(app_name):
             webbrowser.open("https://www.canva.com")
             return "Đã mở trang web Canva trên trình duyệt cho sếp ạ!"
 
+    # 2. Xử lý cứng Clipchamp: Dùng AppUserModelID chính xác của Microsoft Store App
+    if "clipchamp" in clean_name:
+        try:
+            clipchamp_appid = "Clipchamp.Clipchamp_8wekyb3d8bbwe!App"
+            subprocess.Popen(f'explorer.exe shell:AppsFolder\\{clipchamp_appid}', shell=True)
+            return "Em đã mở Clipchamp cho sếp rồi ạ!"
+        except Exception as e:
+            print(f"⚠️ Lỗi mở Clipchamp: {e}")
+
+    # 3. Tìm app trong Database / Apps Cache
     matched_key, app_data = find_app_entry(app_name)
 
+    # 4. Mở app theo AppID hoặc File Path chuẩn
     if app_data and "appid" in app_data:
         appid = app_data["appid"]
         try:
@@ -553,14 +574,16 @@ def open_app(app_name):
                 os.startfile(appid)
                 return f"Em đã mở {matched_key} cho sếp rồi ạ!"
             else:
-                subprocess.Popen(f'explorer.exe shell:AppsFolder\\"{appid}"', shell=True)
+                # Chú ý: shell:AppsFolder không được bọc dấu " trong tham số appid
+                subprocess.Popen(f'explorer.exe shell:AppsFolder\\{appid}', shell=True)
                 return f"Em đã mở {matched_key} cho sếp rồi ạ!"
         except Exception as e:
             print(f"⚠️ Lỗi mở app qua AppID {appid}: {e}")
 
+    # 5. Dự phòng
     try:
-        subprocess.Popen(f'explorer.exe shell:AppsFolder\\"{clean_name}"', shell=True)
-        return f"Đang mở {clean_name} cho sếp ạ!"
+        subprocess.Popen(f'explorer.exe shell:AppsFolder\\{matched_key}', shell=True)
+        return f"Đang mở {matched_key} cho sếp ạ!"
     except Exception:
         return f"Em không tìm thấy ứng dụng {app_name} trên máy sếp ơi."
 

@@ -14,6 +14,7 @@ import pyautogui
 import xml.etree.ElementTree as ET
 import GPUtil
 import sys
+import win32com.client
 
 parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if parent_dir not in sys.path:
@@ -63,6 +64,8 @@ for path in OPERA_PATHS:
         OPERA_EXEC = path
         break
 
+APPS_CACHE_FILE = "apps_cache.json"
+
 # ==========================================
 # BẢNG PRE-PROCESSING SỬA LỖI GIỌNG NÓI (STT)
 # ==========================================
@@ -75,6 +78,10 @@ STT_CORRECTIONS = {
     "power shell": "powershell",
     "window powershell": "powershell",
     "windows powershell": "powershell",
+    "clip champ": "clipchamp",
+    "clip time": "clipchamp",
+    "click time": "clipchamp",
+    "clip Trang": "clipchamp",
 }
 
 def normalize_speech_text(text: str) -> str:
@@ -85,10 +92,9 @@ def normalize_speech_text(text: str) -> str:
     return text
 
 # ==========================================
-# APP DATABASE NGUYÊN BẢN CỦA SẾP
+# APP DATABASE DỰ PHÒNG CHUẨN
 # ==========================================
 APP_DATABASE = {
-    # 1. Nhóm Microsoft Office
     "ppt": {
         "appid": "Microsoft.Office.POWERPNT.EXE.15",
         "exes": ["POWERPNT.EXE"],
@@ -104,32 +110,10 @@ APP_DATABASE = {
         "exes": ["EXCEL.EXE"],
         "aliases": ["microsoft excel"]
     },
-    "access": {
-        "appid": "Microsoft.Office.MSACCESS.EXE.15",
-        "exes": ["MSACCESS.EXE"],
-        "aliases": []
-    },
-    "onenote": {
-        "appid": "Microsoft.Office.ONENOTE.EXE.15",
-        "exes": ["ONENOTE.EXE"],
-        "aliases": []
-    },
-    "outlook": {
-        "appid": "Microsoft.OutlookForWindows_8wekyb3d8bbwe!Microsoft.OutlookforWindows",
-        "exes": ["outlook.exe", "OUTLOOK.EXE"],
-        "aliases": ["thư", "mail"]
-    },
-
-    # 2. Lập trình, Máy ảo & Công cụ Dev
     "vs code": {
         "appid": "Microsoft.VisualStudioCode",
         "exes": ["Code.exe"],
         "aliases": ["vscode", "visual studio code", "code"]
-    },
-    "vmware": {
-        "appid": "VMware.Workstation.vmui",
-        "exes": ["vmware.exe"],
-        "aliases": ["vm ware", "vmware workstation", "máy ảo"]
     },
     "cmd": {
         "appid": r"{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\cmd.exe",
@@ -141,13 +125,6 @@ APP_DATABASE = {
         "exes": ["powershell.exe", "pwsh.exe"],
         "aliases": ["windows powershell", "power shell"]
     },
-    "terminal": {
-        "appid": "Microsoft.WindowsTerminal_8wekyb3d8bbwe!App",
-        "exes": ["WindowsTerminal.exe"],
-        "aliases": ["đầu cuối"]
-    },
-
-    # 3. Trình duyệt & Mạng
     "chrome": {
         "appid": "Chrome",
         "exes": ["chrome.exe"],
@@ -158,81 +135,10 @@ APP_DATABASE = {
         "exes": ["opera.exe", "launcher.exe"],
         "aliases": ["opera gx", "trình duyệt opera"]
     },
-    "edge": {
-        "appid": "MSEdge",
-        "exes": ["msedge.exe"],
-        "aliases": ["microsoft edge"]
-    },
-
-    # 4. Chat & Mạng xã hội
     "zalo": {
         "appid": "com.vng.zalo",
         "exes": ["Zalo.exe"],
         "aliases": []
-    },
-    "discord": {
-        "appid": "com.squirrel.Discord.Discord",
-        "exes": ["Discord.exe"],
-        "aliases": []
-    },
-    "facebook": {
-        "appid": "FACEBOOK.FACEBOOK_8xx8rvfyw5nnt!App",
-        "exes": ["Facebook.exe"],
-        "aliases": ["fb"]
-    },
-
-    # 5. Đồ họa, Giải trí & Game
-    "canva": {
-        "appid": "com.canva.CanvaDesktop",
-        "exes": ["Canva.exe"],
-        "aliases": ["can va", "thiết kế canva"]
-    },
-    "capcut": {
-        "appid": r"c:.users.admina.appdata.local.capcut.apps.9.2.0.3931.capcut.exe",
-        "exes": ["CapCut.exe"],
-        "aliases": ["cap cut"]
-    },
-    "blender": {
-        "appid": r"{6D809377-6AF0-444B-8957-A3773F02200E}\Blender Foundation\Blender 5.2\blender.exe",
-        "exes": ["blender.exe"],
-        "aliases": []
-    },
-    "obs": {
-        "appid": r"{6D809377-6AF0-444B-8957-A3773F02200E}\obs-studio\bin\64bit\obs64.exe",
-        "exes": ["obs64.exe", "obs32.exe", "obs.exe"],
-        "aliases": ["obs studio"]
-    },
-    "spotify": {
-        "appid": os.path.expandvars(r"%APPDATA%\Spotify\Spotify.exe"),
-        "exes": ["Spotify.exe"],
-        "aliases": []
-    },
-    "garena": {
-        "appid": r"{7C5A40EF-A0FB-4BFC-874A-C0F2E0B9FA8E}\Garena\Garena\Garena.exe",
-        "exes": ["Garena.exe", "GarenaMessenger.exe"],
-        "aliases": []
-    },
-    "bluestacks": {
-        "appid": "BlueStacks_nxt",
-        "exes": ["HD-Player.exe", "BlueStacks.exe"],
-        "aliases": ["blue stacks", "bluestacks 5", "giả lập"]
-    },
-    "minecraft": {
-        "appid": os.path.expandvars(r"%APPDATA%\.tlauncher\legacy\Minecraft\LL.exe"),
-        "exes": ["LL.exe", "javaw.exe"],
-        "aliases": ["tlauncher", "legacy launcher"]
-    },
-    "virtualdj": {
-        "appid": r"{6D809377-6AF0-444B-8957-A3773F02200E}\VirtualDJ\virtualdj.exe",
-        "exes": ["virtualdj.exe"],
-        "aliases": ["virtual dj"]
-    },
-
-    # 6. Tiện ích & Phần mềm Hệ thống
-    "ultraviewer": {
-        "appid": r"{7C5A40EF-A0FB-4BFC-874A-C0F2E0B9FA8E}\UltraViewer\UltraViewer_Desktop.exe",
-        "exes": ["UltraViewer_Desktop.exe", "UltraViewer.exe"],
-        "aliases": ["ultra viewer"]
     },
     "máy tính": {
         "appid": "Microsoft.WindowsCalculator_8wekyb3d8bbwe!App",
@@ -244,21 +150,6 @@ APP_DATABASE = {
         "exes": ["Notepad.exe"],
         "aliases": ["ghi chú"]
     },
-    "cắt ảnh": {
-        "appid": "Microsoft.ScreenSketch_8wekyb3d8bbwe!App",
-        "exes": ["SnippingTool.exe"],
-        "aliases": ["snipping tool", "công cụ cắt"]
-    },
-    "task manager": {
-        "appid": r"{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\taskmgr.exe",
-        "exes": ["Taskmgr.exe"],
-        "aliases": ["quản lý tác vụ"]
-    },
-    "control panel": {
-        "appid": "Microsoft.Windows.ControlPanel",
-        "exes": ["control.exe"],
-        "aliases": ["bảng điều khiển"]
-    },
     "settings": {
         "appid": "windows.immersivecontrolpanel_cw5n1h2txyewy!microsoft.windows.immersivecontrolpanel",
         "exes": ["SystemSettings.exe"],
@@ -268,48 +159,16 @@ APP_DATABASE = {
         "appid": "Microsoft.Windows.Explorer",
         "exes": ["explorer.exe"],
         "aliases": ["thư mục", "explorer", "quản lý tệp"]
-    },
-    "fdm": {
-        "appid": "FreeDownloadManager",
-        "exes": ["fdm.exe"],
-        "aliases": ["free download manager"]
-    },
-    "msi afterburner": {
-        "appid": r"{7C5A40EF-A0FB-4BFC-874A-C0F2E0B9FA8E}\MSI Afterburner\MSIAfterburner.exe",
-        "exes": ["MSIAfterburner.exe"],
-        "aliases": ["afterburner"]
-    },
-    "rainmeter": {
-        "appid": r"{6D809377-6AF0-444B-8957-A3773F02200E}\Rainmeter\Rainmeter.exe",
-        "exes": ["Rainmeter.exe"],
-        "aliases": []
-    },
-    "lenovo vantage": {
-        "appid": "E046963F.LenovoCompanion_k1h2ywk1493x8!App",
-        "exes": ["LenovoVantage.exe"],
-        "aliases": ["vantage"]
-    },
-    "lenovo legion toolkit": {
-        "appid": os.path.expandvars(r"%LOCALAPPDATA%\Programs\LenovoLegionToolkit\Lenovo Legion Toolkit.exe"),
-        "exes": ["Lenovo Legion Toolkit.exe"],
-        "aliases": ["legion toolkit"]
     }
 }
 
-# ==========================================
-# BẢNG PROCESS MAP CHUẨN HÓA CẢ KEY THƯỜNG VA HOA
-# ==========================================
 APP_PROCESS_MAP = {
     "access": ["MSACCESS.EXE"],
     "amd software": ["RadeonSoftware.exe", "AMDRadeonSoftware.exe"],
     "ảnh (photos)": ["Photos.exe", "PhotosApp.exe"],
     "bảo mật windows": ["SecHealthUI.exe"],
     "blender": ["blender.exe"],
-    "blender 5.2": ["blender.exe"],
-    "blueai": ["BlueAI.exe"],
     "bluestacks": ["HD-Player.exe", "HD-MultiInstanceManager.exe"],
-    "bluestacks 5": ["HD-Player.exe", "HD-MultiInstanceManager.exe"],
-    "bluestacks manager": ["HD-MultiInstanceManager.exe"],
     "camera": ["WindowsCamera.exe"],
     "canva": ["Canva.exe"],
     "capcut": ["CapCut.exe"],
@@ -319,45 +178,25 @@ APP_PROCESS_MAP = {
     "control panel": ["control.exe"],
     "terminal": ["WindowsTerminal.exe"],
     "discord": ["Discord.exe"],
-    "đồng hồ (clock)": ["Time.exe"],
     "excel": ["EXCEL.EXE"],
     "facebook": ["Facebook.exe"],
     "file explorer": ["explorer.exe"],
     "free download manager": ["fdm.exe"],
-    "game bar": ["GameBar.exe", "GameBarFTServer.exe"],
     "garena": ["Garena.exe", "GarenaMessenger.exe"],
     "google chrome": ["chrome.exe"],
     "chrome": ["chrome.exe"],
     "minecraft": ["LL.exe", "javaw.exe"],
-    "lenovo legion toolkit": ["LenovoLegionToolkit.exe"],
-    "lenovo vantage": ["LenovoVantage.exe"],
-    "máy tính tay (calculator)": ["CalculatorApp.exe", "Calculator.exe"],
-    "clipchamp": ["Clipchamp.exe"],
     "microsoft edge": ["msedge.exe"],
     "edge": ["msedge.exe"],
-    "microsoft store": ["WinStore.App.exe"],
-    "microsoft teams": ["ms-teams.exe", "Teams.exe"],
-    "paint": ["mspaint.exe"],
-    "whiteboard": ["Whiteboard.exe"],
-    "msi afterburner": ["MSIAfterburner.exe"],
     "notepad": ["Notepad.exe"],
-    "nvidia app": ["NVIDIA App.exe", "NVIDIA Overlay.exe"],
     "obs studio": ["obs64.exe", "obs32.exe"],
     "obs": ["obs64.exe", "obs32.exe"],
-    "onenote": ["ONENOTE.EXE"],
     "opera": ["opera.exe"],
-    "outlook": ["olk.exe", "OUTLOOK.EXE"],
     "powerpoint": ["POWERPNT.EXE"],
     "ppt": ["POWERPNT.EXE"],
-    "publisher": ["MSPUB.EXE"],
-    "rainmeter": ["Rainmeter.exe"],
-    "skype for business": ["lync.exe"],
     "spotify": ["Spotify.exe"],
-    "sticky notes": ["Microsoft.Notes.exe", "StikyNot.exe"],
     "task manager": ["Taskmgr.exe", "taskmgr.exe"],
-    "trình phát đa phương tiện": ["MediaTool.exe", "Music.UI.exe"],
     "ultraviewer": ["UltraViewer_Desktop.exe"],
-    "virtualdj": ["virtualdj.exe"],
     "visual studio code": ["Code.exe"],
     "vs code": ["Code.exe"],
     "vscode": ["Code.exe"],
@@ -366,6 +205,135 @@ APP_PROCESS_MAP = {
     "word": ["WINWORD.EXE"],
     "zalo": ["Zalo.exe"],
 }
+
+# ==========================================
+# CƠ CHẾ DYNAMIC APP INDEXING & CACHING
+# ==========================================
+def scan_all_windows_apps():
+    """
+    Quét TOÀN BỘ ứng dụng trên Windows (Bao gồm Win32 .exe + Microsoft Store Apps như Clipchamp):
+    1. Dùng PowerShell 'Get-StartApps' quét 100% AppStore & UWP Apps.
+    2. Quét thư mục Start Menu (.lnk) để lấy file .exe truyền thống.
+    """
+    scanned_apps = {}
+
+    # ---------------------------------------------------------
+    # BƯỚC 1: QUÉT APP STORE & HỆ THỐNG QUA POWERSHELL (Bắt được Clipchamp, Photos, v.v.)
+    # ---------------------------------------------------------
+    try:
+        ps_command = 'Get-StartApps | ConvertTo-Json -Compress'
+        result = subprocess.run(
+            ["powershell", "-Command", ps_command],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="ignore"
+        )
+        
+        if result.returncode == 0 and result.stdout.strip():
+            start_apps = json.loads(result.stdout)
+            # Nếu chỉ trả về 1 app dạng dict thì ép thành list
+            if isinstance(start_apps, dict):
+                start_apps = [start_apps]
+
+            for app in start_apps:
+                app_name = app.get("Name", "").strip().lower()
+                app_id = app.get("AppID", "").strip()
+
+                if app_name and app_id:
+                    # Bỏ qua các đường dẫn uninstall hoặc trợ giúp
+                    if "uninstall" in app_name or "remove" in app_name:
+                        continue
+
+                    clean_key = re.sub(r'[^\w\s]', '', app_name)
+                    scanned_apps[app_name] = {
+                        "appid": app_id,
+                        "exes": [os.path.basename(app_id)] if app_id.endswith(".exe") else [],
+                        "aliases": [clean_key, app_name.replace(" ", "")]
+                    }
+            print(f"📌 [SYSTEM] PowerShell đã quét thấy {len(scanned_apps)} apps (Store + Win32).")
+    except Exception as e:
+        print(f"⚠️ Lỗi quét PowerShell Get-StartApps: {e}")
+
+    # ---------------------------------------------------------
+    # BƯỚC 2: QUÉT BỔ SUNG START MENU DESKTOP (.LNK)
+    # ---------------------------------------------------------
+    try:
+        pythoncom.CoInitialize()
+        shell = win32com.client.Dispatch("WScript.Shell")
+
+        start_menu_paths = [
+            os.path.expandvars(r"%APPDATA%\Microsoft\Windows\Start Menu\Programs"),
+            os.path.expandvars(r"%PROGRAMDATA%\Microsoft\Windows\Start Menu\Programs")
+        ]
+
+        for path in start_menu_paths:
+            if not os.path.exists(path):
+                continue
+                
+            for root, _, files in os.walk(path):
+                for file in files:
+                    if file.endswith(".lnk"):
+                        shortcut_path = os.path.join(root, file)
+                        try:
+                            shortcut = shell.CreateShortCut(shortcut_path)
+                            target_path = shortcut.TargetPath
+                            
+                            if target_path and target_path.lower().endswith(".exe") and os.path.exists(target_path):
+                                app_name = os.path.splitext(file)[0].lower().strip()
+                                exe_name = os.path.basename(target_path)
+                                clean_key = re.sub(r'[^\w\s]', '', app_name)
+                                
+                                # Cập nhật thông tin chi tiết file .exe nếu tìm thấy
+                                scanned_apps[app_name] = {
+                                    "appid": target_path,
+                                    "exes": [exe_name],
+                                    "aliases": [clean_key, app_name.replace(" ", "")]
+                                }
+                        except Exception:
+                            continue
+    except Exception as e:
+        print(f"⚠️ Lỗi quét Start Menu Shortcuts: {e}")
+    finally:
+        try:
+            pythoncom.CoUninitialize()
+        except Exception:
+            pass
+
+    # ---------------------------------------------------------
+    # BƯỚC 3: GHI VÀO APPS_CACHE.JSON
+    # ---------------------------------------------------------
+    try:
+        with open(APPS_CACHE_FILE, "w", encoding="utf-8") as f:
+            json.dump(scanned_apps, f, ensure_ascii=False, indent=4)
+        print(f"✅ [SYSTEM] Đã lưu tổng cộng {len(scanned_apps)} ứng dụng vào {APPS_CACHE_FILE}!")
+    except Exception as e:
+        print(f"⚠️ Lỗi ghi file apps_cache.json: {e}")
+
+    return scanned_apps
+
+
+def load_dynamic_app_database():
+    """Tự động nạp danh sách app từ apps_cache.json vào hệ thống"""
+    if not os.path.exists(APPS_CACHE_FILE):
+        dynamic_apps = scan_all_windows_apps()
+    else:
+        try:
+            with open(APPS_CACHE_FILE, "r", encoding="utf-8") as f:
+                dynamic_apps = json.load(f)
+        except Exception:
+            dynamic_apps = scan_all_windows_apps()
+
+    for app_name, app_info in dynamic_apps.items():
+        if app_name not in APP_DATABASE:
+            APP_DATABASE[app_name] = app_info
+            
+        if app_name not in APP_PROCESS_MAP and app_info.get("exes"):
+            APP_PROCESS_MAP[app_name] = app_info["exes"]
+
+# Nạp ứng dụng tự động khi module được import
+load_dynamic_app_database()
+
 
 def is_game_running():
     """Kiểm tra FO4 hoặc Minecraft có đang chạy không để tối ưu phần cứng"""
@@ -549,19 +517,19 @@ def find_app_entry(input_name):
 
     # 1. Tìm khớp chính xác key hoặc alias
     for key, data in APP_DATABASE.items():
-        if clean_name == key or clean_name in data["aliases"]:
+        if clean_name == key or clean_name in data.get("aliases", []):
             return key, data
 
     # 2. Tìm kiếm chứa từ khóa (substring)
     for key, data in APP_DATABASE.items():
-        if key in clean_name or any(alias in clean_name for alias in data["aliases"]):
+        if key in clean_name or any(alias in clean_name for alias in data.get("aliases", [])):
             return key, data
 
     return clean_name, None
 
 
 def open_app(app_name):
-    """Mở app trực tiếp qua AppID shellprotocol / Protocol riêng"""
+    """Mở app thông minh: Mở mượt mà cả App .exe lẫn App Store / Windows Default Apps"""
     if not app_name or not app_name.strip():
         return "Sếp chưa nói tên ứng dụng cần mở ạ."
 
@@ -583,15 +551,16 @@ def open_app(app_name):
         try:
             if appid.endswith(".exe") and os.path.exists(appid):
                 os.startfile(appid)
+                return f"Em đã mở {matched_key} cho sếp rồi ạ!"
             else:
                 subprocess.Popen(f'explorer.exe shell:AppsFolder\\"{appid}"', shell=True)
-            return f"Em đã mở {matched_key} cho sếp rồi ạ!"
+                return f"Em đã mở {matched_key} cho sếp rồi ạ!"
         except Exception as e:
             print(f"⚠️ Lỗi mở app qua AppID {appid}: {e}")
 
     try:
-        subprocess.Popen(f'explorer.exe shell:AppsFolder\\"{matched_key}"', shell=True)
-        return f"Đang mở {matched_key} cho sếp ạ!"
+        subprocess.Popen(f'explorer.exe shell:AppsFolder\\"{clean_name}"', shell=True)
+        return f"Đang mở {clean_name} cho sếp ạ!"
     except Exception:
         return f"Em không tìm thấy ứng dụng {app_name} trên máy sếp ơi."
 
@@ -687,7 +656,7 @@ def close_app(app_name):
 
     clean_name = re.sub(r'\s+', ' ', raw_clean).lower()
 
-    # 1. Tìm các file .exe tương ứng trong dictionary (so sánh không phân biệt chữ hoa chữ thường)
+    # 1. Tìm các file .exe tương ứng trong dictionary
     target_exes = []
     for key, exe_list in APP_PROCESS_MAP.items():
         key_lower = key.lower()
@@ -700,17 +669,15 @@ def close_app(app_name):
         if key_lower in clean_name or any(alias in clean_name for alias in data.get("aliases", [])):
             target_exes.extend(data.get("exes", []))
 
-    # Loại bỏ trùng lặp tên exe
     target_exes = list(set(target_exes))
 
-    # Nếu không thấy trong dictionary thì dùng tên gốc
     if not target_exes:
         exe_guess = clean_name.replace(" ", "")
         if not exe_guess.endswith(".exe"):
             exe_guess += ".exe"
         target_exes = [exe_guess]
 
-    # 3. Thử cưỡng chế tắt trực tiếp bằng CMD (taskkill /F /T /IM)
+    # 3. Thử cưỡng chế tắt trực tiếp bằng CMD
     killed_any = False
     for exe in target_exes:
         try:
@@ -724,7 +691,7 @@ def close_app(app_name):
     if killed_any:
         return f"Đã đóng triệt để {clean_name} cho sếp rồi ạ!"
 
-    # 4. Phương án dự phòng: Dùng psutil quét từng PID nếu CMD bị bỏ sót
+    # 4. Phương án dự phòng: Dùng psutil
     try:
         psutil_killed = False
         for proc in psutil.process_iter(['pid', 'name']):
@@ -746,14 +713,20 @@ def close_app(app_name):
 
 
 def execute_single_command(user_text, chat_history=None):
-    """Hàm xử lý TỪNG LỆNH ĐƠN (Gồm đầy đủ 20 case hệ thống)"""
+    """Hàm xử lý TỪNG LỆNH ĐƠN (Gồm đầy đủ 20 case hệ thống + Quét lại app)"""
     if chat_history is None:
         chat_history = []
     
-    # 🛑 0. Chuẩn hóa câu nói đầu vào (Khắc phục lỗi STT nhận diện sai tiếng Anh)
+    # 0. Chuẩn hóa câu nói đầu vào
     text = normalize_speech_text(user_text)
 
-    # 🛑 1. BẮT BẢO NGHĨA LỆNH DỌN / XÓA THƯ MỤC DOWNLOADS
+    # 🛑 LỆNH THÊM MỚI: QUÉT LẠI ỨNG DỤNG MÁY TÍNH
+    if any(k in text for k in ["quét lại ứng dụng", "cập nhật ứng dụng", "quét app", "cập nhật app"]):
+        scan_all_windows_apps()
+        load_dynamic_app_database()
+        return "Em đã quét lại toàn bộ phần mềm và ứng dụng Store trên máy cho sếp rồi ạ!"
+
+    # 1. BẮT BẢO NGHĨA LỆNH DỌN / XÓA THƯ MỤC DOWNLOADS
     clean_verbs = [
         "xóa", "xoá", "dọn", "dọn dẹp", "làm sạch", "xóa sạch", 
         "xoá sạch", "xóa hết", "xoá hết", "dọn sạch",
@@ -766,7 +739,7 @@ def execute_single_command(user_text, chat_history=None):
     if any(v in text for v in clean_verbs) and any(dk in text for dk in dl_keywords):
         return clean_downloads_folder()
 
-    # 🛑 2. BỘ XỬ LÝ FILE / THƯ MỤC CHUNG
+    # 2. BỘ XỬ LÝ FILE / THƯ MỤC CHUNG
     file_res = execute_file_command(text)
     if file_res:
         return file_res
@@ -776,7 +749,7 @@ def execute_single_command(user_text, chat_history=None):
     if timer_res:
         return timer_res
 
-    # 4. Kiểm tra Nhiệt độ (Cả CPU và GPU)
+    # 4. Kiểm tra Nhiệt độ (CPU và GPU)
     elif any(
         k in text for k in [
             "nhiệt độ", "máy nóng không", "nhiệt độ cpu", 
@@ -1017,7 +990,6 @@ def execute_command(user_text, chat_history=None):
     if chat_history is None:
         chat_history = []
 
-    # Tách câu thành danh sách lệnh con dựa trên regex các từ nối thông dụng
     separators = r'\b(?:và|rồi|sau đó|đồng thời|tiếp theo|với cả)\b|,'
     sub_commands = re.split(separators, user_text, flags=re.IGNORECASE)
 
@@ -1030,9 +1002,7 @@ def execute_command(user_text, chat_history=None):
                 results.append(res)
                 time.sleep(0.5)
 
-    # Nếu có ít nhất 1 lệnh hệ thống được thực thi -> Trả kết quả ghép tự nhiên
     if results:
         return " ".join(results)
 
-    # Không khớp lệnh hệ thống nào -> Trả None để backend tự gọi Groq AI hỏi đáp
     return None

@@ -272,6 +272,7 @@ HOLIDAYS = {
     (1, 5): "ngày Quốc tế Lao động",
     (1, 6): "ngày Quốc tế Thiếu nhi",
     (2, 9): "ngày lễ Quốc khánh",
+    (19, 10): "ngày sinh nhật của Sếp",
     (20, 10): "ngày Phụ nữ Việt Nam",
     (20, 11): "ngày Nhà giáo Việt Nam",
     (24, 12): "đêm Giáng sinh",
@@ -537,99 +538,81 @@ def ask_groq_stream(user_input, chat_history, target_model=None):
 # TOOL XỬ LÝ FILE (TÓM TẮT HOẶC DỊCH FILE PDF/WORD/TXT)
 # ==========================================
 def tool_process_file(user_command: str = "") -> str:
-  """Xử lý file tài liệu: Tóm tắt HOẶC Dịch nguyên văn tùy theo yêu cầu của sếp."""
-  file_path = get_any_file_path(user_command)
-  if not file_path:
-    return "Em không tìm thấy file tài liệu nào trên Clipboard hay trong thư mục Downloads/Desktop cả sếp ơi."
+    """
+    Xử lý file tài liệu đa năng cho JARVIS:
+    - Phân biệt chính xác giữa TÓM TẮT và DỊCH NGUYÊN VĂN.
+    - Chạy Map-Reduce không giới hạn độ dài file (không bị cắt xén 8000 ký tự nữa).
+    - Tạo câu trả lời ngắn cho Voice + Tạo file .txt chi tiết mở lên Notepad cho sếp.
+    """
+    file_path = get_any_file_path(user_command)
+    if not file_path:
+        return "Em không tìm thấy file tài liệu nào trên Clipboard hay trong thư mục Downloads/Desktop cả sếp ơi."
 
-  original_filename = os.path.basename(file_path)
-  base_name = os.path.splitext(original_filename)[0]
+    original_filename = os.path.basename(file_path)
+    base_name = os.path.splitext(original_filename)[0]
 
-  text_content = extract_text_from_file(file_path)
-
-  if not text_content or not text_content.strip():
-    return f"Không xử lý được file {original_filename} vì không có nội dung chữ sếp ơi."
-
-  cmd_lower = user_command.lower()
-  is_translation = any(
-      kw in cmd_lower for kw in ["dịch", "translate", "sang tiếng việt"]
-  )
-
-  if is_translation:
-    print(
-        f"📄 [JARVIS] Đang DỊCH NGUYÊN VĂN file: {original_filename} ({len(text_content)} ký tự)..."
+    cmd_lower = user_command.lower()
+    is_translation = any(
+        kw in cmd_lower for kw in ["dịch", "translate", "sang tiếng việt"]
     )
-    system_prompt = (
-        "Bạn là dịch giả cao cấp. Nhiệm vụ: DỊCH TOÀN BỘ NGUYÊN VĂN 100% nội dung"
-        " tài liệu sang tiếng Việt.\n"
-        "QUY TẮC BẮT BUỘC:\n"
-        "- TUYỆT ĐỐI KHÔNG tóm tắt, KHÔNG bỏ sót đoạn nào.\n"
-        "- TUYỆT ĐỐI KHÔNG giải thích hay thêm bớt ý.\n"
-        "Bắt buộc trả về đúng cấu trúc JSON sau (không thêm văn bản ngoài"
-        ' JSON):\n{\n  "voice_summary": "Lời thông báo ngắn đã dịch xong",\n '
-        ' "detailed_summary": "BẢN DỊCH HOÀN CHỈNH NGUYÊN ĐOẠN 100%"\n}'
-    )
-    file_prefix = "Ban_Dich_"
-  else:
-    print(
-        f"📄 [JARVIS] Đang TÓM TẮT file: {original_filename} ({len(text_content)} ký tự)..."
-    )
-    system_prompt = (
-        "Bạn là trợ lý tóm tắt văn bản chuyên nghiệp.\n"
-        "Bắt buộc trả về đúng cấu trúc JSON sau (không thêm văn bản ngoài"
-        ' JSON):\n{\n  "voice_summary": "Tóm tắt cực ngắn 2-3 câu để đọc",\n '
-        ' "detailed_summary": "Tóm tắt chi tiết dạng gạch đầu dòng các ý'
-        ' chính"\n}'
-    )
-    file_prefix = "Tom_Tat_"
 
-  raw_reply = None
-  for model_name in AVAILABLE_MODELS:
+    if is_translation:
+        print(f"📄 [JARVIS] Đang DỊCH NGUYÊN VĂN file: {original_filename}...")
+        file_prefix = "Ban_Dich_"
+        header_title = "BẢN DỊCH NGUYÊN VĂN"
+    else:
+        print(f"📄 [JARVIS] Đang TÓM TẮT file: {original_filename}...")
+        file_prefix = "Tom_Tat_"
+        header_title = "BẢN TÓM TẮT"
+
+    # 1. Gọi Map-Reduce xử lý toàn bộ nội dung file (không bị trảm chữ)
+    from features.pdf_handler import process_file_with_map_reduce
+    detailed_text = process_file_with_map_reduce(
+        file_path=file_path,
+        client=client,
+        available_models=AVAILABLE_MODELS,
+        is_translation=is_translation,
+        user_command=user_command
+    )
+
+    if not detailed_text:
+        return f"Không xử lý được file {original_filename} vì không trích xuất được nội dung chữ sếp ơi."
+
+    # 2. Tạo câu thông báo bằng giọng nói (Voice summary ngắn gọn)
+    if is_translation:
+        voice_text = f"Dạ em đã dịch xong toàn bộ nguyên văn file {original_filename} sang tiếng Việt cho sếp rồi ạ."
+    else:
+        # Nếu là tóm tắt, bắt AI tạo thêm 1 câu tóm tắt cực ngắn (2-3 câu) để đọc cho sếp nghe
+        try:
+            summary_voice_res = client.chat.completions.create(
+                model=AVAILABLE_MODELS[0],
+                messages=[
+                    {
+                        "role": "user",
+                        "content": f"Dựa vào bản tóm tắt sau, hãy viết đúng 2 câu ngắn gọn nhất để đọc thành tiếng cho sếp nghe:\n\n{detailed_text[:3000]}"
+                    }
+                ],
+                max_tokens=150,
+                temperature=0.2
+            )
+            voice_text = summary_voice_res.choices[0].message.content.strip()
+        except Exception:
+            voice_text = f"Dạ em đã tóm tắt xong toàn bộ file {original_filename} từ đầu đến kết thúc cho sếp rồi ạ."
+
+    # 3. Xuất file kết quả ra Desktop và mở Notepad
+    desktop_path = os.path.expanduser("~/Desktop")
+    output_file = os.path.join(desktop_path, f"{file_prefix}{base_name}.txt")
+
     try:
-      response = client.chat.completions.create(
-          model=model_name,
-          messages=[
-              {"role": "system", "content": system_prompt},
-              {
-                  "role": "user",
-                  "content": (
-                      f"Yêu cầu: {user_command}\n\n[NỘI DUNG TÀI"
-                      f" LIỆU]:\n{text_content[:8000]}"
-                  ),
-              },
-          ],
-          temperature=0.1 if is_translation else 0.2,
-          max_tokens=3000,
-      )
-      raw_reply = response.choices[0].message.content.strip()
-      if raw_reply:
-        print(f"✅ AI xử lý file thành công qua model: {model_name}")
-        break
-    except Exception as e:
-      print(f"⚠️ Model {model_name} báo lỗi file: {e}")
-      continue
+        with open(output_file, "w", encoding="utf-8") as f:
+            f.write(f"=== {header_title} FILE: {original_filename} ===\n\n")
+            f.write(detailed_text)
 
-  if not raw_reply:
-    return "Không có model AI nào phản hồi, sếp kiểm tra lại Groq API Key nhé."
+        os.system(f'start notepad "{output_file}"')
+    except Exception as f_err:
+        print(f"⚠️ Không lưu được file txt: {f_err}")
 
-  data = parse_json_safely(raw_reply)
-  voice_text = data.get("voice_summary", "Đã xử lý xong tài liệu cho sếp.")
-  detailed_text = data.get("detailed_summary", raw_reply)
-
-  desktop_path = os.path.expanduser("~/Desktop")
-  output_file = os.path.join(desktop_path, f"{file_prefix}{base_name}.txt")
-
-  try:
-    with open(output_file, "w", encoding="utf-8") as f:
-      header = "BẢN DỊCH NGUYÊN VĂN" if is_translation else "BẢN TÓM TẮT"
-      f.write(f"=== {header} FILE: {original_filename} ===\n\n")
-      f.write(detailed_text)
-
-    os.system(f'start notepad "{output_file}"')
-  except Exception as f_err:
-    print(f"⚠️ Không lưu được file txt: {f_err}")
-
-  return voice_text
+    return voice_text
 
 
 KNOWN_APPS = [
